@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Earthquake Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 900px;
+        }
+        .legend {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            z-index: 999;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .legend-item {
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            border-radius: 50%;
+        }
+    </style>
+
+  <!-- Our CSS -->
+  <link rel="stylesheet" type="text/css" href="static/css/style.css">
+</head>
+<body>
+
+<div id="map"></div>
+<div class="legend" id="legend"></div>
+
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<script>
+    var map = L.map('map').setView([0, 0], 2);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson')
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                pointToLayer: function (feature, latlng) {
+                    var depth = feature.geometry.coordinates[2]; // Depth of the earthquake
+                    var magnitude = feature.properties.mag; // Magnitude of the earthquake
+
+                    // Calculate size based on magnitude
+                    var size = Math.sqrt(magnitude) * 5;
+
+                    // Calculate color based on depth
+                    var color = getColor(depth);
+
+                    return L.circleMarker(latlng, {
+                        radius: size,
+                        fillColor: color,
+                        color: "#000",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
+                },
+                onEachFeature: function (feature, layer) {
+                    layer.bindPopup('<h3>' + feature.properties.place + '</h3><p>Magnitude: ' + feature.properties.mag + '</p><p>Depth: ' + feature.geometry.coordinates[2] + '</p><p>Date & Time: ' + new Date(feature.properties.time) + '</p>');
+                }
+            }).addTo(map);
+
+            // Add legend
+            var legend = L.control({position: 'bottomleft'});
+
+            legend.onAdd = function (map) {
+
+                var div = L.DomUtil.create('div', 'legend');
+                div.innerHTML += '<div class="legend-item"><div class="legend-color" style="background-color:' + getColor(0) + '"></div> 0</div>';
+                div.innerHTML += '<div class="legend-item"><div class="legend-color" style="background-color:' + getColor(350) + '"></div> 350</div>';
+                div.innerHTML += '<div class="legend-item"><div class="legend-color" style="background-color:' + getColor(700) + '"></div> 700</div>';
+                return div;
+            };
+
+            legend.addTo(map);
+        });
+
+    // Function to determine color based on depth
+    function getColor(depth) {
+        var maxDepth = 700;
+        var ratio = depth / maxDepth;
+        var hue = 120 * (1 - ratio);
+        return 'hsl(' + hue + ', 100%, 50%)';
+    }
+</script>
+
+</body>
+</html>
